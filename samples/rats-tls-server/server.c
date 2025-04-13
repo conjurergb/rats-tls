@@ -19,6 +19,9 @@
 #include <rats-tls/log.h>
 #include <rats-tls/claim.h>
 
+// jw: test_time
+#include <time.h>
+
 #define DEFAULT_PORT 1234
 #define DEFAULT_IP   "127.0.0.1"
 
@@ -103,6 +106,7 @@ int rats_tls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 			    char *verifier_type, char *tls_type, char *crypto_type, bool mutual,
 			    bool provide_endorsements, bool debug_enclave, char *ip, int port)
 {
+	printf("=====SGX: rats-tls server startup!\n");
 	uint32_t s_ip = inet_addr(ip);
 	uint16_t s_port = htons((uint16_t)port);
 

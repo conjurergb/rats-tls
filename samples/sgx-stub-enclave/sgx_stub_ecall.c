@@ -15,10 +15,16 @@
 #include "rats-tls/api.h"
 #include "sgx_stub_t.h"
 
+#include <time.h>
+
 int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_type,
 			      char *verifier_type, char *tls_type, char *crypto_type,
 			      unsigned long flags, uint32_t s_ip, uint16_t s_port)
 {
+	printf("=====ecall_rats_server_startup!\n");
+	double init_begin, init_end, neg_begin, neg_end, rec_finish, trs_begin;
+	ocall_current_time(&init_begin);
+
 	rats_tls_conf_t conf;
 
 	memset(&conf, 0, sizeof(conf));
@@ -126,6 +132,9 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 	struct rtls_sockaddr_in c_addr;
 	uint32_t addrlen_in = sizeof(c_addr);
 	uint32_t addrlen_out;
+	
+	ocall_current_time(&init_end);
+
 	while (1) {
 		RTLS_INFO("Waiting for a connection from client ...\n");
 
@@ -135,8 +144,11 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 			RTLS_ERR("Failed to call accept() %#x %d\n", sgx_status, connd);
 			return -1;
 		}
-
+		
+		ocall_current_time(&neg_begin);
 		ret = rats_tls_negotiate(handle, connd);
+		ocall_current_time(&neg_end);		
+
 		if (ret != RATS_TLS_ERR_NONE) {
 			RTLS_ERR("Failed to negotiate %#x\n", ret);
 			goto err;
@@ -146,7 +158,11 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 
 		char buf[256];
 		size_t len = sizeof(buf);
+		
+		
 		ret = rats_tls_receive(handle, buf, &len);
+		ocall_current_time(&rec_finish);
+
 		if (ret != RATS_TLS_ERR_NONE) {
 			RTLS_ERR("Failed to receive %#x\n", ret);
 			goto err;
@@ -159,6 +175,8 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 		RTLS_INFO("Client: %s\n", buf);
 
 		/* Reply back to the client */
+
+		ocall_current_time(&trs_begin);
 		ret = rats_tls_transmit(handle, buf, &len);
 		if (ret != RATS_TLS_ERR_NONE) {
 			RTLS_ERR("Failed to transmit %#x\n", ret);
@@ -166,6 +184,13 @@ int ecall_rtls_server_startup(rats_tls_log_level_t log_level, char *attester_typ
 		}
 
 		ocall_close(&ocall_ret, connd);
+		printf("[Server] init begin: 		%f\n", init_begin);
+		printf("[Server] init end: 		%f\n", init_end);
+		printf("[Server] negotiate begin: 	%f\n", neg_begin);
+		printf("[Server] negotiate end: 	%f\n", neg_end);
+		printf("[Server] receive finish:	%f\n", rec_finish);
+		printf("[Server] transmit begin:	%f\n", trs_begin);
+
 	}
 
 	return 0;
@@ -195,7 +220,11 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 			      unsigned long flags, uint32_t s_ip, uint16_t s_port, bool verdictd)
 {
 	rats_tls_conf_t conf;
-
+	double init_begin, init_end, neg_begin, neg_end, rec_finish, trs_begin;
+	ocall_current_time(&init_begin);
+	
+	printf("=====ecall_rats_client_startup!\n");
+	
 	memset(&conf, 0, sizeof(conf));
 	conf.log_level = log_level;
 	snprintf(conf.attester_type, sizeof(conf.attester_type), "%s", attester_type);
@@ -244,8 +273,11 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 		RTLS_ERR("Failed to set verification callback %#x\n", ret);
 		return -1;
 	}
-
+	ocall_current_time(&init_end);
+	ocall_current_time(&neg_begin);
 	ret = rats_tls_negotiate(handle, (int)sockfd);
+	ocall_current_time(&neg_end);
+
 	if (ret != RATS_TLS_ERR_NONE) {
 		RTLS_ERR("Failed to negotiate %#x\n", ret);
 		goto err;
@@ -258,6 +290,7 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 		msg = "\033[94mHello and welcome to RATS-TLS!\033[0m\n";
 
 	size_t len = strlen(msg);
+	ocall_current_time(&trs_begin);
 	ret = rats_tls_transmit(handle, (void *)msg, &len);
 	if (ret != RATS_TLS_ERR_NONE || len != strlen(msg)) {
 		RTLS_ERR("Failed to transmit %#x\n", ret);
@@ -267,6 +300,7 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 	char buf[256];
 	len = sizeof(buf);
 	ret = rats_tls_receive(handle, buf, &len);
+	ocall_current_time(&rec_finish);
 	if (ret != RATS_TLS_ERR_NONE) {
 		RTLS_ERR("Failed to receive %#x\n", ret);
 		goto err;
@@ -306,6 +340,12 @@ int ecall_rtls_client_startup(rats_tls_log_level_t log_level, char *attester_typ
 		printf("Invalid response retrieved from rats-tls server\n");
 		goto err;
 	}
+	printf("[Client] init begin: 		%f\n", init_begin);
+	printf("[Client] init end: 		%f\n", init_end);
+	printf("[Client] negotiate begin: 	%f\n", neg_begin);
+	printf("[Client] negotiate end: 	%f\n", neg_end);
+	printf("[Client] receive finish:	%f\n", rec_finish);
+	printf("[Client] transmit begin:	%f\n", trs_begin);
 
 	ret = rats_tls_cleanup(handle);
 	if (ret != RATS_TLS_ERR_NONE)

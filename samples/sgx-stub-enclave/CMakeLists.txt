@@ -6,7 +6,7 @@ if(BUILD_SAMPLES)
                      ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include/rats-tls
                      ${CMAKE_CURRENT_SOURCE_DIR}/../../src/include/edl
                      ${CMAKE_CURRENT_SOURCE_DIR}/../../src/external/sgx-ssl/intel-sgx-ssl/src/intel-sgx-ssl/Linux/package/include
-                     )
+		     )
 
     set(LIBRARY_DIRS ${INTEL_SGXSSL_LIB_PATH}
                      ${LIBCBOR_LIB_PATH}
